@@ -10,7 +10,7 @@ loader_log='/opt/allot/vftrk/logs/loader.log'
 csv_file_prefix='vftrk'
 ipquery_csv_file_path='/opt/allot/vftrk/csv/'
 
-copyCDRV7 = {
+copyHDRV7 = {
 #root dir of the project
      "root_path":"/opt/allot/vftrk/",
 #data from Data Mediator
@@ -23,7 +23,7 @@ copyCDRV7 = {
     "loader_log": "/opt/allot/vftrk/logs/loader.log",
     "csv_file_prefix": "vftrk",
     "ipquery_csv_file_path": "/opt/allot/vftrk/csv/",
-    "pattern": "*CONV_V7.csv.gz",
+    "pattern": "*HDR_V7.csv.gz",
     "copyCMD": """
     copy data.CDR(f filler varchar,Start_time, End_time filler timestamp, f1 filler varchar, IP_Source as INET_ATON(regexp_substr(f1, '(^.+:)?(\d|\.)+', 2))
     , f2 filler varchar, IP_Dest as INET_ATON(regexp_substr(f2, '(^.+:)?(\d|\.)+', 2)), Application
