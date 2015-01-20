@@ -15,6 +15,7 @@ import shutil
 import fnmatch
 import logging
 import config
+import gzip
 
 
 
@@ -36,12 +37,13 @@ def sql_log(cursor, log_time, loaded_rows, rejected_rows, duration_sec, log_appl
     cursor.connection.commit()
 
 
-def main(log_file=None):
-# task parameters
-    data_dir = config.data_dir
-    exceptions = config.exceptions
-    rejected = config.rejected
-    pattern = config.copyCDRV7['pattern']
+def loader(configLoad):
+
+    # task parameters
+    data_dir = configLoad['data_dir']
+    exceptions_path = configLoad['exceptions']
+    rejected_path = configLoad['rejected']
+    pattern = configLoad['pattern']
     connection_options = dict(
         dsn='vertica',
         user='dbadmin',
@@ -49,14 +51,8 @@ def main(log_file=None):
         label='loader_%s' % str(time.time()).replace('.', '_')
     )
 
-    copy_sql = """copy data.CDR(f filler varchar,Start_time, End_time filler timestamp, f1 filler varchar, IP_Source as INET_ATON(regexp_substr(f1, '(^.+:)?(\d|\.)+', 2))
-    , f2 filler varchar, IP_Dest as INET_ATON(regexp_substr(f2, '(^.+:)?(\d|\.)+', 2)), Application
-    ,f3 filler varchar,f4 filler varchar,f5 filler varchar,f6 filler varchar,f7 filler varchar,f8 filler varchar,f9 filler varchar,f10 filler varchar,f11 filler varchar
-    ,f12 filler varchar,f13 filler varchar,f14 filler varchar,f15 filler varchar,f16 filler varchar,f17 filler varchar,f18 filler varchar,f19 filler varchar,f20 filler varchar
-    , Bytes_in, Bytes_out) 
-    from '%s' gzip direct delimiter ',' enclosed '"' skip 1
-    EXCEPTIONS '%s' REJECTED DATA '%s' ;
-    """
+    copy_sql = configLoad['copyCMD']
+
 
     # set logger
     if not log_file:
@@ -98,8 +94,11 @@ def main(log_file=None):
     # copy files from working directory
     for path in filtered:
         copy_file = os.path.join(work_dir, path)
+        path_short = path.replace('.gz', '')
+        exception_file= exceptions_path %path_short
+        rejected_file= rejected_path %path_short
         cursor = connection.cursor()
-        cursor.execute(copy_sql % (copy_file, exceptions, rejected))
+        cursor.execute(copy_sql % (copy_file, exception_file, rejected_file))
         cursor.execute(
             'select get_num_accepted_rows(), get_num_rejected_rows()')
         accepted, rejected = cursor.fetchone()
@@ -108,13 +107,19 @@ def main(log_file=None):
         stats['total'] += (accepted + rejected)
         logging.info('COPY DONE. File: %r, accepted: %d, rejected: %d',
                      path, accepted, rejected)
+        if(rejected > 0):
+            with open(rejected_file) as src, gzip.open(rejected_file+'.gz', 'wb') as dst:
+                dst.writelines(src)
+                os.remove(rejected_file)
+            #gzip.GzipFile(filename=rejected_file)
+
         #shutil.move(copy_file, '/opt/allot/vftrk/testdata')
-        os.remove(copy_file)
-        logging.info('FILE %r DELETED', copy_file)
+        # os.remove(copy_file)
+        # logging.info('FILE %r DELETED', copy_file)
 
     # clean
-    os.rmdir(work_dir)
-    logging.info('work_dir %r DELETED', work_dir)
+    # os.rmdir(work_dir)
+    # logging.info('work_dir %r DELETED', work_dir)
     logging.info('EXIT. Total: %d, loaded: %d, rejected: %d',
                  stats['total'], stats['accepted'], stats['rejected'])
     end_loader=datetime.datetime.now()
@@ -123,8 +128,16 @@ def main(log_file=None):
     sql_log(cursor, startfmt, stats['accepted'], stats['rejected'], round(total_seconds, 1))
     connection.close()
 
+
+def main(log_file=None):
+# LOAD CDRs
+    loader(config.copyCDRV7);
+# LOAD HDRs
+    loader(config.copyCDRV7);
+
+
 if __name__ == '__main__':
-    log_file = '/opt/allot/vftrk/logs/loader.log'
+    log_file = config.loader_log
     log_format = '%(asctime)s %(levelname)-8s %(message)s'
     logging.basicConfig(level=logging.DEBUG, format=log_format, filename=log_file, filemode='a')
     try:
