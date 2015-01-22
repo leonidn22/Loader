@@ -15,6 +15,7 @@ import shutil
 import fnmatch
 import logging
 import config
+import configHDR
 import gzip
 
 
@@ -66,6 +67,7 @@ def loader(configLoad):
     all_files = os.listdir(data_dir)
     filtered = fnmatch.filter(all_files, pattern)
     start_loader=datetime.datetime.now()
+    os.environ['VERTICAINI'] = '/opt/vertica/config/vertica.ini'
     global connection
     connection = pyodbc.connect(**connection_options)
     if set(all_files) ^ set(filtered):
@@ -133,7 +135,7 @@ def main(log_file=None):
 # LOAD CDRs
     loader(config.copyCDRV7);
 # LOAD HDRs
-    loader(config.copyCDRV7);
+    loader(configHDR.copyHDRV7);
 
 
 if __name__ == '__main__':
@@ -149,11 +151,11 @@ if __name__ == '__main__':
         else:
             msg=e.args[0]
         err50 = msg.replace('\\n', ' ').replace("'", '')[0:230]
-        sql_log(connection.cursor(), startfmt, 0, 0, 0, 'Error: %s' % err50)
-        connection.close()
+        #sql_log(connection.cursor(), startfmt, 0, 0, 0, 'Error: %s' % err50)
+        #connection.close()
     except Exception, err:
         logging.exception(err)
         err50 = err.message.replace('\\n', ' ').replace("'", '')[0:230]
-        sql_log(connection.cursor(), startfmt, 0, 0, 0, 'Error: %s' % err50)
-        connection.close()
+        #sql_log(connection.cursor(), startfmt, 0, 0, 0, 'Error: %s' % err50)
+        #connection.close()
 
