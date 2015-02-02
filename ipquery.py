@@ -39,6 +39,7 @@ def validate_date(d):
         return False
 def agr_validation():
 # example: ./ipquery.py '120.20.20.1' '2014-05-13 16:00' '2014-05-13 17:00'
+#  ./ipquery.py '1.18.181.168' '2015-02-02 11:00' '2015-02-02 11:00'
     parser = argparse.ArgumentParser('ipquery')
     parser.add_argument('sourceIP', help="sourceIP")
     parser.add_argument('startTime', help="start hour like this: '2014-09-05 11:00'")

@@ -14,11 +14,11 @@ copyHDRV7 = {
 #root dir of the project
      "root_path":"/opt/allot/vftrk/",
 #data from Data Mediator
-    "data_dir": "/data/vftrk/",
+    "data_dir": "/data1/vftrk/",
 # exceptions
-    "exceptions": "/data/vftrk/exceptions/%s",
+    "exceptions": "/data1/vftrk/exceptions/%s",
 # rejected
-    "rejected": "/data/vftrk/rejected/%s",
+    "rejected": "/data1/vftrk/rejected/%s",
 # loader log file
     "loader_log": "/opt/allot/vftrk/logs/loader.log",
     "csv_file_prefix": "vftrk",

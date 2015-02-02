@@ -14,11 +14,11 @@ copyCDRV7 = {
 #root dir of the project
      "root_path":"/opt/allot/vftrk/",
 #data from Data Mediator
-    "data_dir": "/data/vftrk/",
+    "data_dir": "/data1/vftrk/",
 # exceptions
-    "exceptions": "/data/vftrk/exceptions/%s",
+    "exceptions": "/data1/vftrk/exceptions/%s",
 # rejected
-    "rejected": "/data/vftrk/rejected/%s",
+    "rejected": "/data1/vftrk/rejected/%s",
 # loader log file
     "loader_log": "/opt/allot/vftrk/logs/loader.log",
     "csv_file_prefix": "vftrk",
@@ -41,15 +41,30 @@ aggregation = {
         select distinct(Application) from data.CDR as CD
         where Start_hour = '%s' and Application is not null
         and not exists( select 1 from data.CDR_Application CA where CA.Application = CD.Application)
+        union
+        select distinct(Application) from data.HDR as CD
+        where Start_hour = '%s' and Application is not null
+        and not exists( select 1 from data.CDR_Application CA where CA.Application = CD.Application)
     """,
     "02-insert2CDR_AGG": """
         insert /*+direct*/ into data.CDR_AGG
-        select CDR.IP_source,CDR.IP_dest,APP.Application_id, CDR.Start_hour
-        ,sum(Bytes_in), sum(Bytes_out) from data.CDR CDR, data.CDR_Application APP
-        where Start_hour = '%s'
-        and CDR.Application = APP.Application
-        and CDR.IP_source is not null and CDR.IP_dest is not null
-        group by CDR.Start_hour ,CDR.IP_source , CDR.IP_dest , APP.Application_id
+        select IP_source , IP_dest , Application_id ,Start_hour ,sum(Bytes_in), sum(Bytes_out)from (
+                    select CDR.IP_source  ,CDR.IP_dest,APP.Application_id, CDR.Start_hour
+                    ,Bytes_in, Bytes_out from data.CDR CDR
+                         , data.CDR_Application APP
+                    where CDR.Start_hour = '%s'
+                    and CDR.Application = APP.Application
+                    and CDR.IP_source is not null and CDR.IP_dest is not null
+                    union all
+                    select CDR.IP_source ,CDR.IP_dest,APP.Application_id, CDR.Start_hour
+                    ,Bytes_in, Bytes_out from data.HDR CDR
+                         , data.CDR_Application APP
+                    where CDR.Start_hour = '%s'
+                    and CDR.Application = APP.Application
+                    and CDR.IP_source is not null and CDR.IP_dest is not null
+                    ) inner_union
+        group by Start_hour ,IP_source , IP_dest , Application_id
+
     """
 }
 

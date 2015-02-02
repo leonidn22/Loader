@@ -8,6 +8,16 @@ using namespace std;
 
 /**
  * GZipUnpacker. Decodes .gz format.
+ Install:
+
+g++ -D HAVE_LONG_INT_64 -I /opt/vertica/sdk/include -Wall -shared -Wno-unused-value \
+-fPIC -o /opt/allot/vftrk/etl/ApstFilter.so /opt/allot/vftrk/etl/ApstFilter.cpp /opt/vertica/sdk/include/Vertica.cpp
+
+CREATE OR REPLACE LIBRARY vftrk.data.apst_filter_lib AS '/opt/allot/vftrk/etl/ApstFilter.so'
+
+CREATE OR REPLACE FILTER data.apst_filter
+     AS LANGUAGE 'C++' NAME 'ApstFilterFactory' LIBRARY data.apst_filter_lib
+
  */
 class ApstFilter : public UDFilter {
 private:

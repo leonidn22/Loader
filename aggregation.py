@@ -3,6 +3,7 @@
 
 import pyodbc
 import os
+import sys
 import datetime
 import config,logger
 import configHDR
@@ -44,11 +45,12 @@ def agg_process(raw_type,config_param):
     delta = datetime.timedelta(hours=3)
     start_hour=(now-delta).strftime("%Y-%m-%d %H:00:00")
 # check if the script was running at the same hour
-    cursor.execute("""select count(*) as countagg from data.%s_AGG where Start_hour = '%s' limit 1;""" % (raw_type, start_hour))
-    row = cursor.fetchall()
-    if(row[0].countagg  > 0):
-        print("Agggegation script was already running for Start hour %s" % start_hour)
-        #sys.exit(-1)
+    if raw_type == 'CDR':
+        cursor.execute("""select count(*) as countagg from data.%s_AGG where Start_hour = '%s' limit 1;""" % ('CDR', start_hour))
+        row = cursor.fetchall()
+        if(row[0].countagg  > 0):
+            print("Agggegation script was already running for Start hour %s" % start_hour)
+            sys.exit(-1)
 
     Start_agg=datetime.datetime.now()
     startfmt=now.strftime("%Y-%m-%d %H:%M:%S")
@@ -56,7 +58,7 @@ def agg_process(raw_type,config_param):
     for k, v in sorted(sqls.iteritems()):
         print k
         log.info('  .... %r', k)
-        sql = sqls[k] % '2015-01-08 14:00:00'
+        sql = sqls[k] % (start_hour,start_hour)
     #logging.info(sql)
         cursor.execute(sql)
         conn.commit()
@@ -91,7 +93,7 @@ if __name__ == '__main__':
     try:
 # !! process
         agg_process('CDR', config)
-        agg_process('HDR', configHDR)
+    #     agg_process('HDR', configHDR)
 
     except pyodbc.Error as e:
             msg = 'Exception: %s '% e
