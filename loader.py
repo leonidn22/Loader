@@ -16,6 +16,7 @@ import fnmatch
 import logging
 import config
 import configHDR
+import logging.handlers
 import gzip
 
 
@@ -38,9 +39,9 @@ def sql_log(cursor, log_time, loaded_rows, rejected_rows, duration_sec, log_appl
     cursor.connection.commit()
 
 
-def sql_log_files(cursor, log_time, loaded_rows, rejected_rows, duration_sec, path_shorter, error_msg='',):
-    log_application = error_msg.replace('\\n', ' ').replace("'", '')
-    print  ( 'path - %s ; dur - %s ' % (path_shorter,duration_sec) )
+def sql_log_files(cursor, loaded_rows, rejected_rows, duration_sec, path_shorter, error_msg='',):
+
+    #print ( 'path - %s ; dur - %s ' % (path_shorter,duration_sec))
     pl = path_shorter.split('_', path_shorter.count('_') )
     if(rejected_rows > 0):
         success = False
@@ -74,14 +75,7 @@ def loader(configLoad):
 
     copy_sql = configLoad['copyCMD']
 
-
-    # set logger
-    if not log_file:
-        log_level = logging.DEBUG
-        log_format = '%(asctime)s %(levelname)-8s %(message)s'
-        logging.basicConfig(level=log_level, format=log_format)
-
-    logging.info('START')
+    logger.info('START')
 
     # get files to copy
     all_files = os.listdir(data_dir)
@@ -91,26 +85,26 @@ def loader(configLoad):
     global connection
     connection = pyodbc.connect(**connection_options)
     if set(all_files) ^ set(filtered):
-        logging.warning('CHECK PREVIOUS EXECUTION!!!')
-        logging.warning('should not be any other files except files to copy')
+        logger.warning('CHECK PREVIOUS EXECUTION!!!')
+        logger.warning('should not be any other files except files to copy')
     if not filtered:
-        logging.info('DONE: no files to process for the pattern %s ' % pattern)
+        logger.info('DONE: no files to process for the pattern %s ' % pattern)
         sql_log(connection.cursor(), startfmt, 0, 0, 0, 'no files to process for the pattern %s ' % pattern)
         connection.close()
         return
 
     sid = connection.execute('select current_session()').fetchone()[0]
-    logging.debug('  .... created new connection [session_id: %s]', sid)
+    logger.debug('  .... created new connection [session_id: %s]', sid)
     # create temporary working directory
     work_dir = os.path.join(data_dir, connection_options['label'])
     os.mkdir(work_dir)
-    logging.debug('  .... created work_dir %r' % work_dir)
+    logger.debug('  .... created work_dir %r' % work_dir)
 
     # hide files in temporary working directory
     for path in filtered:
         copy_file = os.path.join(data_dir, path)
         shutil.move(copy_file, work_dir)
-        logging.debug('  .... file %r moved to work_dir', path)
+        logger.debug('  .... file %r moved to work_dir', path)
 
     stats = dict(accepted=0, rejected=0, total=0)
     # copy files from working directory
@@ -128,26 +122,27 @@ def loader(configLoad):
         stats['accepted'] += accepted
         stats['rejected'] += rejected
         stats['total'] += (accepted + rejected)
-        logging.info('COPY DONE. File: %r, accepted: %d, rejected: %d',
+        logger.info('COPY DONE. File: %r, accepted: %d, rejected: %d',
                      path, accepted, rejected)
         path_shorter = path_short.replace('.csv', '')
         dur = datetime.datetime.now() - start_loader_file
         total_seconds = dur.days * 24 * 60 * 60 + dur.seconds
-        sql_log_files(connection.cursor(), startfmt, accepted, rejected, round(total_seconds, 1),path_shorter, '')
-        if rejected > 0:
-            with open(rejected_file) as src, gzip.open(rejected_file+'.gz', 'wb') as dst:
-                dst.writelines(src)
-                os.remove(rejected_file)
-            #gzip.GzipFile(filename=rejected_file)
+        sql_log_files(connection.cursor(), accepted, rejected, round(total_seconds, 1), path_shorter, '')
+        # if rejected > 0:
+        #     with open(rejected_file) as src, gzip.open(rejected_file+'.gz', 'wb') as dst:
+        #         dst.writelines(src)
+        #         os.remove(rejected_file)
+        #     #gzip.GzipFile(filename=rejected_file)
 
         #shutil.move(copy_file, '/opt/allot/vftrk/testdata')
-        os.remove(copy_file)
-        logging.info('FILE %r DELETED', copy_file)
+        if rejected == 0:
+            os.remove(copy_file)
+            logger.info('FILE %r DELETED', copy_file)
 
     # clean
     os.rmdir(work_dir)
-    logging.info('work_dir %r DELETED', work_dir)
-    logging.info('EXIT. Total: %d, loaded: %d, rejected: %d',
+    logger.info('work_dir %r DELETED', work_dir)
+    logger.info('EXIT. Total: %d, loaded: %d, rejected: %d',
                  stats['total'], stats['accepted'], stats['rejected'])
     end_loader=datetime.datetime.now()
     dur = end_loader - start_loader
@@ -156,7 +151,7 @@ def loader(configLoad):
     connection.close()
 
 
-def main(log_file=None):
+def main():
 # LOAD CDRs
     loader(config.copyCDRV7);
 # LOAD HDRs
@@ -166,7 +161,14 @@ def main(log_file=None):
 if __name__ == '__main__':
     log_file = config.loader_log
     log_format = '%(asctime)s %(levelname)-8s %(message)s'
-    logging.basicConfig(level=logging.DEBUG, format=log_format, filename=log_file, filemode='a')
+    #logging.basicConfig(level=logging.DEBUG, format=log_format, filename=log_file, filemode='a')
+    handler = logging.handlers.RotatingFileHandler(log_file, mode='a', maxBytes=10240000, backupCount=2)
+    bf = logging.Formatter(log_format)
+    handler.setFormatter(bf)
+    logger = logging.getLogger()
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+
     try:
         main()
     except pyodbc.Error, e:

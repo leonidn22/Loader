@@ -31,7 +31,7 @@ def agg_process(raw_type,config_param):
 # For eliminate contention with copy command drop previously aggregated partition.
     delta = datetime.timedelta(hours=4)
     start_hour=(now-delta).strftime("%Y-%m-%d %H:00:00")
-    select_part = """SELECT DROP_PARTITION('data.CDR', '%s') """ % start_hour
+    select_part = """SELECT DROP_PARTITION('data.CDR', '%s'), DROP_PARTITION('data.HDR', '%s') """ % start_hour
     try:
         cursor.execute(select_part)
         row = cursor.fetchall()

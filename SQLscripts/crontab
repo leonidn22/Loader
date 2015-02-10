@@ -1,0 +1,3 @@
+*/5 * * * * /opt/allot/vftrk/etl/loader.py
+@daily /opt/allot/vftrk/etl/drop_partition2.py /vertica &> /opt/allot/vftrk/logs/drop_partition.log
+@hourly /opt/allot/vftrk/etl/aggregation.py
